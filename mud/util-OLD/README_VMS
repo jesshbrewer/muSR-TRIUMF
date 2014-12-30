@@ -1,0 +1,43 @@
+Development directory for mud_util.exe        
+
+    mud_util - MuSR Data Format file conversion utility.
+
+  Revision history:
+    v1.1a  25-Jul-1994  [TW]  VMS only. Convert TRI and DAT.
+
+
+o Files needed to build:
+
+    From this directory:
+    --------------------
+VMS descrip.mms		- VMS MMS makefile
+VMS mud_util_cld.cld	- VMS CLI command line definition
+    mud_util.c		- main - command dispatching
+    mud_util.h
+    tri2msr.c		- TRI2 command
+    tri2msr.h
+    msr2tri.c		- 2TRI command
+    msr2tri.h
+    dat2msr.c		- DAT2 command
+    dat2msr.h
+    msr2dat.c		- 2DAT command
+    msr2dat.h
+    tri2spreadsheet.c	- 2SPREADSHEET command
+    tri2spreadsheet.h
+    triumf_fmt.h	- *.tri definition
+    imusr_hdr.h		- *.dat definition
+
+    There must also be a directory mud:, where all of the 
+    include files for the MUD library are located, as well 
+    as mud.olb and link_options.opt.
+
+o Instructions:
+
+  1.  Set default to the directory that contains the source 
+      files listed above.
+
+  2.  Define "sys" as in:
+      $ define/log sys multinet_root:[multinet.include.sys]
+
+  3.  Type the DCL command "$ mms mud_util.exe".
+

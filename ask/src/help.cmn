@@ -1,0 +1,6 @@
+c	file HELP.CMN for use with ASK, CMLI and HELP-*
+c
+        CHARACTER*80 HLP_PATH, HLP_FIL
+        CHARACTER*40 KEY_WD*40
+        COMMON /CB_ASK_HELP/ HLP_PATH, HLP_FIL, KEY_WD
+

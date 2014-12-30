@@ -1,0 +1,76 @@
+Development directory for mud_util (.exe)
+
+    mud_util - MuSR Data Format file conversion utility.
+
+  Revision history:
+    v1.1a  25-Jul-1994  [TW]  VMS only. Convert TRI and DAT.
+    v2.0   21-Mar-2005  [DA]  bring readme up to date: Linux, Mac, Win
+
+o Files needed to build:
+
+    From this directory:
+    --------------------
+	mud_util.c	- main - command dispatching
+	mud_util.h
+	tridfmt.h	- TRI2MUD 2TXT commands
+	tri2mud.c
+	tri2txt.c
+	triifmt.h	- DAT2MUD command
+	dat2mud.c
+        psi2mud.c       - PSI2MUD command
+        psi_fmt.h
+        ral2mud.c       - RAL2MUD command
+        ral_fmt.h
+	mud2tri.c	- MUD2TRI command
+	mud2dat.c	- MUD2DAT command
+	mud2txt.c	- MUD2TXT 2COL commands
+	combine.c	- combine command
+
+
+ VMS    descripscrip.mms	- VMS MMS makefile
+ VMS    mud_util_cld.cld	- VMS CLI command line definition 
+
+ NIX    makefile
+
+ WIN    Makefile.win
+
+
+    There must also be a directory src, where all of the 
+    include files for the MUD library are located, as well 
+    as a lib dir with the mud lib (mud.olb or libmud.a)
+
+o VMS Instructions:
+
+  1.  Set default to the directory that contains the source 
+      files listed above.
+
+  2.  Define "sys" as in:
+      $ define/log sys multinet_root:[multinet.include.sys]
+	
+  3.  Type the DCL command "$ mms mud_util.exe".
+
+o Linux Instructions:
+
+  1.  make
+      or using the readline library with something like
+      make READLINE="-lreadline -lhistory"
+      or make READLINE="-lreadline -lhistory -ltermcap"
+
+  2.  make install
+
+  Look in makefile for more detail
+
+o Mac OS X (Darwin) Instructions
+
+  1.  make ARCH=Darwin 
+      or make ARCH=Darwin READLINE="-lreadline -lhistory"
+
+  2.  make install
+
+o Windows Instructions
+
+  1. Using the free Borland C compiler:
+     make -f Makefile.win 
+
+  2. Or adjust the makefile for other compilers.
+

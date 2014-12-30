@@ -1,0 +1,843 @@
+<html><head><!--
+$Log: mud_friendly.html,v $
+Revision 1.4  2007/11/14 14:10:58  asnd
+Fixed removerf; Changed (recent) outputToFile by closeWriteFile
+
+Revision 1.3  2007/06/21 03:13:20  asnd
+Added removerf program to extras
+
+Revision 1.2  2005/06/21 01:27:40  asnd
+Adjust documentation
+
+Revision 1.1  2003/11/25 16:15:01  asnd
+Add to CVS
+
+--><title>MUD Data Format - Programmer's Guide</title></head><body alink="#ff0000" bgcolor="white" link="#0000ff" text="#000000" vlink="#000080">
+<hr>
+<h1>MUD Data Format - Programmer's Guide</h1>
+<hr>
+
+Quick jump to:<br>
+<b>
+<a href="#INTRO"> Introduction</a><br>
+<a href="#READING"> Reading a data file</a><br>
+<a href="#WRITING"> Writing a data file</a><br>
+<a href="#MISC"> Miscellaneous routines</a><br>
+<a href="#EXAMPLES"> Examples</a><br>
+</b>
+
+<hr>
+
+<h2><a name="INTRO">Introduction</a></h2>
+<p>
+Routines begin with <code>MUD_</code> for applications written in
+C and <code>fMUD_</code> for applications written in Fortran.
+This document refers to all routines as <code>MUD_*</code>, but all
+descriptions apply equally (unless stated otherwise) 
+to the Fortran equivalents, <code>fMUD_*</code>.
+The MUD file's data structures can be accessed directly using
+routines in both C and Fortran, but this document is concerned
+with the higher level "friendly" interface.
+
+</p><p>
+Routines come generally under two categories: those to
+read a file (<code>MUD_*Read</code>, <code>MUD_get*</code>, 
+see <a href="#READING">Reading a data file</a>) 
+and those to write a file (<code>MUD_*Write</code>, <code>MUD_set*</code>, 
+see <a href="#WRITING">Writing a data file</a>).
+Each routine for performing some aspect of reading the file
+has an equivalent for writing.  There is a seperate routine for
+each item to be read/written.
+A file may be opened for reading, writing, or both (modification).  
+If you are programming in C, you may also need to use the
+routine <code>MUD_pack</code> 
+(see <a href="#MISC">Miscellaneous routines</a>).
+
+</p><h3>Prototype declarations</h3>
+<p>
+The prototype declarations listed in this file are intended to
+give guidance to programming applications.  The prototypes are
+declared in the include files: 
+<a href="http://cmms.triumf.ca/mud/mud.h">mud.h</a> (C),
+<a href="http://cmms.triumf.ca/mud/mud.finc">mud.finc</a> (Vax Fortran),
+<a href="http://cmms.triumf.ca/mud/mud.f90">mud.f90</a> (Fortran 90+),
+<a href="http://cmms.triumf.ca/mud/mud.f77">mud.f77</a> (Fortran 77).
+
+</p><p>
+For C, the type <code>UINT32</code> is also defined in mud.h.  It is used 
+to ensure a 32-bit (4-byte) unsigned integer across architectures.  The type
+<code>REAL64</code> declares 64-bit (8-byte) floating-point.  (Other data
+types will undoubtedly be used in the future as new MUD sections are
+added.) Strings for the C routines are zero-terminated.
+
+</p><p>
+In the Fortran prototypes displayed below, the parameters are named
+according to their type: 
+</p><pre>i_  =  integer*4
+c_  =  character*n
+d_  =  double precision (real*8)
+</pre>
+Parameters of type "?" indicate an array that may be
+of several different types.  Parameters ending in "(?)" indicate 
+an array of unknown size.  It is left to the programmer to ensure
+that the type and size of the arrays passed to these routines is
+sensible. Fortran character strings are returned padded with spaces.
+
+<h3>Common parameters</h3>
+
+All routines except <code>MUD_open*</code> and <code>MUD_pack</code>
+return a boolean status value (0 for failure, 1 for success).
+The <code>MUD_open*</code> routines return a file handle, or -1 for
+failure. <code>MUD_pack</code> returns the number of bytes in the 
+resultant array.
+
+<p>
+The file handle, <code>fh</code>, is a small integer returned by 
+<code>MUD_open*</code>, and must be passed to other routines.
+
+</p><p>
+The <code>MUD_get</code><i>-string</i> functions (for C) take
+an integer parameter (<code>strdim</code>) specifying the maximum 
+acceptable string length.  The returned string will have no more
+than <code>strdim-1</code> significant characters (plus the
+null terminator).  The Fortran routines have no need for an
+explicit length parameter (the dimensioned length is passed 
+implicitly).
+
+</p><p>
+Many routines take an integer parameter ("<code>num</code>") indicating
+which of many instances is to be dealt with.  For example, which
+histogram.
+
+</p><h3>A note on time</h3>
+<p>
+All measures of time (single values or arrays) are stored in
+32 bit integers as the number of seconds since 
+00:00:00 GMT, January 1, 1970.
+This is the same as is returned by the standard C library
+function <code>time</code> and stored in the C type
+definition <code>time_t</code>.
+
+</p><h3>Platforms supported</h3>
+<p>
+The MUD library of routines has been written so that
+data files may be used on all supported platforms.  All
+non-portable issues (byte ordering, floating-point
+representation) are handled by the library.
+The library has been built on the following platforms:
+</p><ul>
+<li>PC/Linux</li>
+<li>PC/Windows XP</li>
+<li>IBM PC/DOS (Borland C++ 3.1 - 16 bit) (no Fortran routines)</li>
+<li>VAX/VMS</li>
+<li>Alpha/VMS</li>
+<li>SGI</li>
+<li>Sun Solaris</li>
+</ul>
+and should build easily on many others.
+
+<hr>
+
+<h2><a name="READING">Reading a data file</a></h2>
+<p>
+
+</p><h3>Opening and closing a data file for reading</h3>
+<p>
+Opening the file is the first thing that must be done 
+when reading a file, and closing is the last.
+The open routine returns a file handle, or -1 for failure.  
+The file handle is passed to all of the other routines
+(parameter <code>fh</code>) to specify the file for reading.
+The file type is passed back in <code>pType</code>.  Valid file types
+include (defined in the include file):  
+<code>MUD_FMT_GEN_ID</code>,
+<code>MUD_FMT_TRI_TD_ID</code> (TD-MuSR),
+<code>MUD_FMT_TRI_TI_ID</code> (I-MuSR).
+The close routine returns a boolean status.
+</p><p>
+Note that, in the present implementation, the <em>entire file</em> 
+is read into memory by the <code>MUD_openRead</code> (or
+<code>MUD_openReadWrite</code>) operation.  Any subsequent "get"
+operation is a simple look-up in the MUD structure.  The file handle
+is an index selecting among loaded MUD structures.  The
+<code>MUD_closeRead</code> operation closes the file and releases the
+memory used to hold the MUD structure.  This method provides fast
+access to the various items of data, but can require a lot of memory
+for very large MUD files, and might be inefficient for, say, listing
+the run titles for a series of runs.  An obvious optimization not made
+at present is to directly map the file to (virtual) memory in
+operating systems that allow that.
+
+</p><pre>C routines:
+int MUD_openRead( char* filename, UINT32* pType );
+int MUD_closeRead( int fh );
+
+Fortran routines:
+integer*4 fMUD_openRead( c_filename, i_Type )
+integer*4 fMUD_closeRead( i_fh )
+</pre>
+</p><p>
+See <a href="#WRITING">below</a> for a description of <code>MUD_openReadWrite</code>, which 
+is almost identical to <code>MUD_openRead</code>.
+
+<h3>Reading the Run Description</h3>
+<p>
+The routine <code>MUD_getRunDesc</code> returns the run description
+type in <code>pType</code>.  Valid types are (defined in the include
+file): 
+<code>MUD_SEC_GEN_RUN_DESC_ID</code> (TD-MuSR), 
+<code>MUD_SEC_TRI_TI_RUN_DESC_ID</code> (I-MuSR).  
+
+</p><pre>C routines:
+int MUD_getRunDesc( int fh, UINT32* pType );
+int MUD_getExptNumber( int fh, UINT32* pExptNumber );
+int MUD_getRunNumber( int fh, UINT32* pRunNumber );
+int MUD_getElapsedSec( int fh, UINT32* pElapsedSec );
+int MUD_getTimeBegin( int fh, UINT32* TimeBegin );
+int MUD_getTimeEnd( int fh, UINT32* TimeEnd );
+int MUD_getTitle( int fh, char* title, int strdim );
+int MUD_getLab( int fh, char* lab, int strdim );
+int MUD_getArea( int fh, char* area, int strdim );
+int MUD_getMethod( int fh, char* method, int strdim );
+int MUD_getApparatus( int fh, char* apparatus, int strdim );
+int MUD_getInsert( int fh, char* insert, int strdim );
+int MUD_getSample( int fh, char* sample, int strdim );
+int MUD_getOrient( int fh, char* orient, int strdim );
+int MUD_getDas( int fh, char* das, int strdim );
+int MUD_getExperimenter( int fh, char* experimenter, int strdim );
+ Not in I-MuSR:
+int MUD_getTemperature( int fh, char* temperature, int strdim );
+int MUD_getField( int fh, char* field, int strdim );
+ I-MuSR only:
+int MUD_getSubtitle( int fh, char* subtitle, int strdim );
+int MUD_getComment1( int fh, char* comment1, int strdim );
+int MUD_getComment2( int fh, char* comment2, int strdim );
+int MUD_getComment3( int fh, char* comment3, int strdim );
+
+Fortran routines:
+integer*4 fMUD_getRunDesc( i_fh, i_Type )
+integer*4 fMUD_getExptNumber( i_fh, i_ExptNumber )
+integer*4 fMUD_getRunNumber( i_fh, i_RunNumber )
+integer*4 fMUD_getElapsedSec( i_fh, i_ElapsedSec )
+integer*4 fMUD_getTimeBegin( i_fh, i_TimeBegin )
+integer*4 fMUD_getTimeEnd( i_fh, i_TimeEnd )
+integer*4 fMUD_getTitle( i_fh, c_title )
+integer*4 fMUD_getLab( i_fh, c_lab )
+integer*4 fMUD_getArea( i_fh, c_area )
+integer*4 fMUD_getMethod( i_fh, c_method )
+integer*4 fMUD_getApparatus( i_fh, c_apparatus )
+integer*4 fMUD_getInsert( i_fh, c_insert )
+integer*4 fMUD_getSample( i_fh, c_sample )
+integer*4 fMUD_getOrient( i_fh, c_orient )
+integer*4 fMUD_getDas( i_fh, c_das )
+integer*4 fMUD_getExperimenter( i_fh, c_experimenter )
+ Not in I-MuSR:
+integer*4 fMUD_getTemperature( i_fh, c_temperature )
+integer*4 fMUD_getField( i_fh, c_field )
+ I-MuSR only:
+integer*4 fMUD_getSubtitle( i_fh, c_subtitle )
+integer*4 fMUD_getComment1( i_fh, c_comment1 )
+integer*4 fMUD_getComment2( i_fh, c_comment2 )
+integer*4 fMUD_getComment3( i_fh, c_comment3 )
+</pre>
+
+<h3>Reading the Comments</h3>
+<p>
+The routine <code>MUD_getComments</code> returns the type of the comment group
+in <code>pType</code> and the number of comments in <code>pNum</code>.  
+The only valid type is (defined in the include file): 
+<code>MUD_GRP_CMT_ID</code>.
+
+</p><pre>C routines:
+int MUD_getComments( int fh, UINT32* pType, UINT32* pNum );
+int MUD_getCommentPrev( int fh, int num, UINT32* pPrev );
+int MUD_getCommentNext( int fh, int num, UINT32* pNext );
+int MUD_getCommentTime( int fh, int num, UINT32* pTime );
+int MUD_getCommentAuthor( int fh, int num, char* author, int strdim );
+int MUD_getCommentTitle( int fh, int num, char* title, int strdim );
+int MUD_getCommentBody( int fh, int num, char* body, int strdim );
+
+Fortran routines:
+integer*4 fMUD_getComments( i_fh, i_Type, i_Num )
+integer*4 fMUD_getCommentPrev( i_fh, i_num, i_Prev )
+integer*4 fMUD_getCommentNext( i_fh, i_num, i_Next )
+integer*4 fMUD_getCommentTime( i_fh, i_num, i_Time )
+integer*4 fMUD_getCommentAuthor( i_fh, i_num, c_author )
+integer*4 fMUD_getCommentTitle( i_fh, i_num, c_title )
+integer*4 fMUD_getCommentBody( i_fh, i_num, c_body )
+</pre>
+
+<h3>Reading the Histograms</h3>
+<p>
+The routine <code>MUD_getHists</code> returns the type of the histogram group
+in <code>pType</code> and the number of histograms in <code>pNum</code>.  
+Valid types are (defined in the include file): 
+<code>MUD_GRP_GEN_HIST_ID</code>, 
+<code>MUD_GRP_TRI_TD_HIST_ID</code> (TD-MuSR),
+<code>MUD_GRP_TRI_TI_HIST_ID</code> (I-MuSR).
+
+</p><p>
+The routine <code>MUD_getHistSecondsPerBin</code> stands out
+because it does not retrieve a separate item of data, but duplicates
+the function of <code>MUD_getHistFsPerBin</code>.  Cases have
+arisen where the histogram bin size was not exactly represented
+as an integer number of femtoseconds, so scaled or coded values
+were saved.  <code>MUD_getHistSecondsPerBin</code> is intended to 
+always return the correct time per bin (in seconds).
+
+</p><p>
+Note that the routine <code>MUD_getHistData</code> returns
+the entire (unpacked) array in <code>pData</code>.  For C
+usage, it might be desireable to be returned a pointer to
+the array using <code>MUD_getHistpData</code>.  In this case,
+it is left to the programmer to unpack the array if necessary.
+Note that a value of 0 (zero) in <code>pBytesPerBin</code> 
+indicates a packed array.  Arrays that are returned already 
+unpacked by <code>MUD_getHistData</code> always have 4 bytes per bin.
+Make sure that your array <code>pData</code> is large enough.
+
+</p><pre>C routines:
+int MUD_getHists( int fh, UINT32* pType, UINT32* pNum );
+int MUD_getHistType( int fh, int num, UINT32* pType );
+int MUD_getHistNumBytes( int fh, int num, UINT32* pNumBytes );
+int MUD_getHistNumBins( int fh, int num, UINT32* pNumBins );
+int MUD_getHistBytesPerBin( int fh, int num, UINT32* pBytesPerBin );
+int MUD_getHistFsPerBin( int fh, int num, UINT32* pFsPerBin );
+int MUD_getHistT0_Ps( int fh, int num, UINT32* pT0_ps );
+int MUD_getHistT0_Bin( int fh, int num, UINT32* pT0_bin );
+int MUD_getHistGoodBin1( int fh, int num, UINT32* pGoodBin1 );
+int MUD_getHistGoodBin2( int fh, int num, UINT32* pGoodBin2 );
+int MUD_getHistBkgd1( int fh, int num, UINT32* pBkgd1 );
+int MUD_getHistBkgd2( int fh, int num, UINT32* pBkgd2 );
+int MUD_getHistNumEvents( int fh, int num, UINT32* pNumEvents );
+int MUD_getHistTitle( int fh, int num, char* title, int strdim );
+
+int MUD_getHistSecondsPerBin( int fh, int num, REAL64* pSecondsPerBin );
+
+int MUD_getHistData( int fh, int num, void* pData );
+int MUD_getHistpData( int fh, int num, void** ppData );
+
+Fortran routines:
+integer*4 fMUD_getHists( i_fh, i_Type, i_Num )
+integer*4 fMUD_getHistType( i_fh, i_num, i_Type )
+integer*4 fMUD_getHistNumBytes( i_fh, i_num, i_NumBytes )
+integer*4 fMUD_getHistNumBins( i_fh, i_num, i_NumBins )
+integer*4 fMUD_getHistBytesPerBin( i_fh, i_num, i_BytesPerBin )
+integer*4 fMUD_getHistFsPerBin( i_fh, i_num, i_FsPerBin )
+integer*4 fMUD_getHistT0_Ps( i_fh, i_num, i_T0_ps )
+integer*4 fMUD_getHistT0_Bin( i_fh, i_num, i_T0_bin )
+integer*4 fMUD_getHistGoodBin1( i_fh, i_num, i_GoodBin1 )
+integer*4 fMUD_getHistGoodBin2( i_fh, i_num, i_GoodBin2 )
+integer*4 fMUD_getHistBkgd1( i_fh, i_num, i_Bkgd1 )
+integer*4 fMUD_getHistBkgd2( i_fh, i_num, i_Bkgd2 )
+integer*4 fMUD_getHistNumEvents( i_fh, i_num, i_NumEvents )
+integer*4 fMUD_getHistTitle( i_fh, i_num, c_title )
+
+integer*4 fMUD_getHistSecondsPerBin( i_fh, i_num, d_SecondsPerBin )
+
+integer*4 fMUD_getHistData( i_fh, i_num, ?_pData(?) )
+</pre>
+
+<h3>Reading the Scalers</h3>
+<p>
+The routine <code>MUD_getScalers</code> returns the type 
+of the scaler group
+in <code>pType</code> and the number of scalers in <code>pNum</code>.  
+Valid types are (defined in the include file): 
+<code>MUD_GRP_GEN_SCALER_ID</code>, 
+<code>MUD_GRP_TRI_TD_SCALER_ID</code> (TD-MuSR).
+<code>MUD_getScalerLabel</code> gives the scaler label for a particular
+numbered scaler, and <code>MUD_getScalerCounts</code> gives 
+an array of two 4-byte integers: the scaler total, and the most recent
+increment (rate).
+
+</p><pre>C routines:
+int MUD_getScalers( int fh, UINT32* pType, UINT32* pNum );
+int MUD_getScalerLabel( int fh, int num, char* label, int strdim );
+int MUD_getScalerCounts( int fh, int num, UINT32* pCounts );
+
+Fortran routines:
+integer*4 fMUD_getScalers( i_fh, i_Type, i_Num )
+integer*4 fMUD_getScalerLabel( i_fh, i_num, c_label )
+integer*4 fMUD_getScalerCounts( i_fh, i_num, i_Counts(2) )
+</pre>
+
+<h3>Reading the Independent Variables</h3>
+<p>
+The routine <code>MUD_getIndVars</code> returns the type 
+of the independent variable group
+in <code>pType</code> and the number of independent
+variables in <code>pNum</code>.  
+Valid types are (defined in the include file): 
+<code>MUD_GRP_GEN_IND_VAR_ID</code> (TD-MuSR), 
+<code>MUD_GRP_GEN_IND_VAR_ARR_ID</code> (I-MuSR).
+The type <code>MUD_GRP_GEN_IND_VAR_ID</code> has statistics
+data only.  The type <code>MUD_GRP_GEN_IND_VAR_ARR_ID</code> has
+statistics data, history data and possibly time data (time that
+the data point was taken, in seconds since 00:00 Jan. 1, 1970).
+
+</p><p>
+For history data, the data type is returned in <code>pDataType</code>, 
+with values of 1 for integer, 2 for real and 3 for string.  
+The number of history data points is returned in <code>pNumData</code>.
+The element size <code>pElemSize</code> is in bytes per element.
+The boolean value <code>pHasTime</code> indicates whether or not there
+is time data.
+It might be desireable to receive a pointer to the array data, 
+using <code>MUD_getIndVarpData</code> and 
+<code>MUD_getIndVarpTimeData</code>.  In this case, it is up to
+the programmer to unpack the data (if necessary).
+Note that time data is never packed.
+
+</p><pre>C routines:
+int MUD_getIndVars( int fh, UINT32* pType, UINT32* pNum );
+int MUD_getIndVarLow( int fh, int num, double* pLow );
+int MUD_getIndVarHigh( int fh, int num, double* pHigh );
+int MUD_getIndVarMean( int fh, int num, double* pMean );
+int MUD_getIndVarStddev( int fh, int num, double* pStddev );
+int MUD_getIndVarSkewness( int fh, int num, double* pSkewness );
+int MUD_getIndVarName( int fh, int num, char* name, int strdim );
+int MUD_getIndVarDescription( int fh, int num, char* description, int strdim );
+int MUD_getIndVarUnits( int fh, int num, char* units, int strdim );
+ For MUD_GRP_GEN_IND_VAR_ARR_ID groups:
+int MUD_getIndVarNumData( int fh, int num, UINT32* pNumData );
+int MUD_getIndVarElemSize( int fh, int num, UINT32* pElemSize );
+int MUD_getIndVarDataType( int fh, int num, UINT32* pDataType );
+int MUD_getIndVarHasTime( int fh, int num, UINT32* pHasTime );
+int MUD_getIndVarData( int fh, int num, void* pData );
+int MUD_getIndVarpData( int fh, int num, void** ppData );
+int MUD_getIndVarTimeData( int fh, int num, UINT32* pTimeData );
+int MUD_getIndVarpTimeData( int fh, int num, UINT32** ppTimeData );
+
+Fortran routines:
+integer*4 fMUD_getIndVars( i_fh, i_Type, i_Num )
+integer*4 fMUD_getIndVarLow( i_fh, i_num, real*8 pLow )
+integer*4 fMUD_getIndVarHigh( i_fh, i_num, real*8 pHigh )
+integer*4 fMUD_getIndVarMean( i_fh, i_num, real*8 pMean )
+integer*4 fMUD_getIndVarStddev( i_fh, i_num, real*8 pStddev )
+integer*4 fMUD_getIndVarSkewness( i_fh, i_num, real*8 pSkewness )
+integer*4 fMUD_getIndVarName( i_fh, i_num, c_name )
+integer*4 fMUD_getIndVarDescription( i_fh, i_num, c_description )
+integer*4 fMUD_getIndVarUnits( i_fh, i_num, c_units )
+ For MUD_GRP_GEN_IND_VAR_ARR_ID groups:
+integer*4 fMUD_getIndVarNumData( i_fh, i_num, i_NumData )
+integer*4 fMUD_getIndVarElemSize( i_fh, i_num, i_ElemSize )
+integer*4 fMUD_getIndVarDataType( i_fh, i_num, i_DataType )
+integer*4 fMUD_getIndVarHasTime( i_fh, i_num, i_HasTime )
+integer*4 fMUD_getIndVarData( i_fh, i_num, ?_pData(?) )
+integer*4 fMUD_getIndVarTimeData( i_fh, i_num, i_TimeData(?) )
+</pre>
+
+<hr>
+
+<h2><a name="WRITING">Writing a data file</a></h2>
+<p>
+
+</p><h3>Opening and closing a file for writing</h3>
+<p>
+Writing a data file can be handled in three different ways,
+where the best choice depends on the origin of the data.
+</p><p>
+If the data does not come from a MUD file, but will be 
+written to one, then the destination file should first be
+opened with <code>MUD_openWrite</code>, all the data should
+be inserted using the <code>MUD_set...</code> functions, and 
+then the file should be closed by <code>MUD_closeWrite</code>.
+The open routine returns a file handle (or -1 for failure)
+which is passed to all of the other routines 
+(parameter <code>fh</code>) to specify the file for writing.
+The file type is defined by <code>type</code>.  Valid file types
+include (defined in the include file):  
+<code>MUD_FMT_GEN_ID</code>,
+<code>MUD_FMT_TRI_TD_ID</code> (TD-MuSR),
+<code>MUD_FMT_TRI_TI_ID</code> (I-MuSR).
+The close routine returns a boolean status.  
+Note that, in the present implementation, the file on disk is 
+indeed opened by <code>MUD_openWrite</code>,
+but nothing is written to it until <code>MUD_closeWrite</code>
+writes out the entire MUD structure.
+</p><p>
+To modify an existing MUD file, it should be opened with 
+<code>MUD_openReadWrite</code>, which is the same as 
+<code>MUD_openRead</code> except for the file-access mode.
+There is <em>no</em> corresponding <code>MUD_closeReadWrite</code>
+function!  Use <code>MUD_closeWrite</code> to re-write the 
+MUD file, or <code>MUD_closeRead</code> to close the file,
+abandoning any changes that were made. 
+</p><p>
+To write modifications of an existing MUD file to a different 
+file, access the original data beginning with <code>MUD_openRead</code>, 
+modify the data (<code>MUD_set...</code>), then write the altered data using 
+<code>MUD_closeWriteFile</code> specifying the new file name to write.
+
+</p><pre>C routines:
+int MUD_openWrite( char* filename, UINT32 type );
+int MUD_openReadWrite( char* filename, UINT32* pType );
+int MUD_closeWrite( int fh );
+int MUD_closeWriteFile( int fh, char* filename );
+
+Fortran routines:
+integer*4 fMUD_openWrite( c_filename, i_type )
+integer*4 fMUD_openReadWrite( c_filename, i_Type )
+integer*4 fMUD_closeWrite( i_fh )
+integer*4 fMUD_closeWriteFile( i_fh, c_filename )
+</pre>
+
+<h3>Writing the Run Description</h3>
+<p>
+The routine <code>MUD_setRunDesc</code> initializes a run description
+section of type <code>type</code>.  This must be done before specifying
+any of the other parts of the run description.
+Valid types are (defined in the include file): 
+<code>MUD_SEC_GEN_RUN_DESC_ID</code> (TD-MuSR), 
+<code>MUD_SEC_TRI_TI_RUN_DESC_ID</code> (I-MuSR).  
+
+</p><pre>C routines:
+int MUD_setRunDesc( int fh, UINT32 type );
+int MUD_setExptNumber( int fh, UINT32 exptNumber );
+int MUD_setRunNumber( int fh, UINT32 runNumber );
+int MUD_setElapsedSec( int fh, UINT32 elapsedSec );
+int MUD_setTimeBegin( int fh, UINT32 timeBegin );
+int MUD_setTimeEnd( int fh, UINT32 timeEnd );
+int MUD_setTitle( int fh, char* title );
+int MUD_setLab( int fh, char* lab );
+int MUD_setArea( int fh, char* area );
+int MUD_setMethod( int fh, char* method );
+int MUD_setApparatus( int fh, char* apparatus );
+int MUD_setInsert( int fh, char* insert );
+int MUD_setSample( int fh, char* sample );
+int MUD_setOrient( int fh, char* orient );
+int MUD_setDas( int fh, char* das );
+int MUD_setExperimenter( int fh, char* experimenter );
+ Not in I-MuSR:
+int MUD_setTemperature( int fh, char* temperature );
+int MUD_setField( int fh, char* field );
+ I-MuSR only:
+int MUD_setSubtitle( int fh, char* subtitle );
+int MUD_setComment1( int fh, char* comment1 );
+int MUD_setComment2( int fh, char* comment2 );
+int MUD_setComment3( int fh, char* comment3 );
+
+Fortran routines:
+integer*4 fMUD_setRunDesc( i_fh, i_type )
+integer*4 fMUD_setExptNumber( i_fh, i_exptNumber )
+integer*4 fMUD_setRunNumber( i_fh, i_runNumber )
+integer*4 fMUD_setElapsedSec( i_fh, i_elapsedSec )
+integer*4 fMUD_setTimeBegin( i_fh, i_timeBegin )
+integer*4 fMUD_setTimeEnd( i_fh, i_timeEnd )
+integer*4 fMUD_setTitle( i_fh, c_title )
+integer*4 fMUD_setLab( i_fh, c_lab )
+integer*4 fMUD_setArea( i_fh, c_area )
+integer*4 fMUD_setMethod( i_fh, c_method )
+integer*4 fMUD_setApparatus( i_fh, c_apparatus )
+integer*4 fMUD_setInsert( i_fh, c_insert )
+integer*4 fMUD_setSample( i_fh, c_sample )
+integer*4 fMUD_setOrient( i_fh, c_orient )
+integer*4 fMUD_setDas( i_fh, c_das )
+integer*4 fMUD_setExperimenter( i_fh, c_experimenter )
+ Not in I-MuSR:
+integer*4 fMUD_setTemperature( i_fh, c_temperature )
+integer*4 fMUD_setField( i_fh, c_field )
+ I-MuSR only:
+integer*4 fMUD_setSubtitle( i_fh, c_subtitle )
+integer*4 fMUD_setComment1( i_fh, c_comment1 )
+integer*4 fMUD_setComment2( i_fh, c_comment2 )
+integer*4 fMUD_setComment3( i_fh, c_comment3 )
+</pre>
+
+<h3>Writing the Comments</h3>
+<p>
+The routine <code>MUD_setComments</code> initializes a comment group
+of type <code>type</code> with <code>num</code> comments.
+This must be done before defining the comments.  
+The only valid type is (defined in the include file): 
+<code>MUD_GRP_CMT_ID</code>.
+
+</p><pre>C routines:
+int MUD_setComments( int fh, UINT32 type, UINT32 num );
+int MUD_setCommentPrev( int fh, int num, UINT32 prev );
+int MUD_setCommentNext( int fh, int num, UINT32 next );
+int MUD_setCommentTime( int fh, int num, UINT32 time );
+int MUD_setCommentAuthor( int fh, int num, char* author );
+int MUD_setCommentTitle( int fh, int num, char* title );
+int MUD_setCommentBody( int fh, int num, char* body );
+
+Fortran routines:
+integer*4 fMUD_setComments( i_fh, i_type, i_num )
+integer*4 fMUD_setCommentPrev( i_fh, i_num, i_rev )
+integer*4 fMUD_setCommentNext( i_fh, i_num, i_next )
+integer*4 fMUD_setCommentTime( i_fh, i_num, i_time )
+integer*4 fMUD_setCommentAuthor( i_fh, i_num, c_author )
+integer*4 fMUD_setCommentTitle( i_fh, i_num, c_title )
+integer*4 fMUD_setCommentBody( i_fh, i_num, c_body )
+</pre>
+
+<h3>Writing the Histograms</h3>
+<p>
+The routine <code>MUD_setHists</code> initializes a histogram group
+of type <code>type</code> with <code>num</code> histograms.
+This must be done before defining the histograms.
+Valid types are (defined in the include file): 
+<code>MUD_GRP_GEN_HIST_ID</code>, 
+<code>MUD_GRP_TRI_TD_HIST_ID</code> (TD-MuSR),
+<code>MUD_GRP_TRI_TI_HIST_ID</code> (I-MuSR).
+Note that you pass an array of 32 bit integers to the 
+routine <code>MUD_setHistData</code>.  This routine will
+pack the array, if necessary, depending on the previous definition
+of <code>bytesPerBin</code>.
+Note that a value of 0 (zero) in <code>bytesPerBin</code> 
+indicates a packed array.  
+
+</p><p>
+For C usage, it might be desireable to pass a pointer to
+the array using <code>MUD_setHistpData</code>.  In this case,
+it is left to the programmer to pack the array (if necessary).
+
+</p><pre>C routines:
+int MUD_setHists( int fh, UINT32 type, UINT32 num );
+int MUD_setHistType( int fh, int num, UINT32 type );
+int MUD_setHistNumBytes( int fh, int num, UINT32 numBytes );
+int MUD_setHistNumBins( int fh, int num, UINT32 numBins );
+int MUD_setHistBytesPerBin( int fh, int num, UINT32 bytesPerBin );
+int MUD_setHistFsPerBin( int fh, int num, UINT32 fsPerBin );
+int MUD_setHistT0_Ps( int fh, int num, UINT32 t0_ps );
+int MUD_setHistT0_Bin( int fh, int num, UINT32 t0_bin );
+int MUD_setHistGoodBin1( int fh, int num, UINT32 goodBin1 );
+int MUD_setHistGoodBin2( int fh, int num, UINT32 goodBin2 );
+int MUD_setHistBkgd1( int fh, int num, UINT32 bkgd1 );
+int MUD_setHistBkgd2( int fh, int num, UINT32 bkgd2 );
+int MUD_setHistNumEvents( int fh, int num, UINT32 numEvents );
+int MUD_setHistTitle( int fh, int num, char* title );
+
+int MUD_setHistSecondsPerBin( int fh, int num, REAL64 secondsPerBin );
+
+int MUD_setHistData( int fh, int num, void* pData );
+int MUD_setHistpData( int fh, int num, void* pData );
+
+Fortran routines:
+integer*4 fMUD_setHists( i_fh, i_type, i_num )
+integer*4 fMUD_setHistType( i_fh, i_num, i_type )
+integer*4 fMUD_setHistNumBytes( i_fh, i_num, i_numBytes )
+integer*4 fMUD_setHistNumBins( i_fh, i_num, i_numBins )
+integer*4 fMUD_setHistBytesPerBin( i_fh, i_num, i_bytesPerBin )
+integer*4 fMUD_setHistFsPerBin( i_fh, i_num, i_fsPerBin )
+integer*4 fMUD_setHistT0_Ps( i_fh, i_num, i_t0_ps )
+integer*4 fMUD_setHistT0_Bin( i_fh, i_num, i_t0_bin )
+integer*4 fMUD_setHistGoodBin1( i_fh, i_num, i_goodBin1 )
+integer*4 fMUD_setHistGoodBin2( i_fh, i_num, i_goodBin2 )
+integer*4 fMUD_setHistBkgd1( i_fh, i_num, i_bkgd1 )
+integer*4 fMUD_setHistBkgd2( i_fh, i_num, i_bkgd2 )
+integer*4 fMUD_setHistNumEvents( i_fh, i_num, i_numEvents )
+integer*4 fMUD_setHistTitle( i_fh, i_num, c_title )
+
+integer*4 fMUD_setHistSecondsPerBin( i_fh, i_num, d_secondsPerBin )
+
+integer*4 fMUD_setHistData( i_fh, i_num, ?_pData(?) )
+</pre>
+
+<h3>Writing the Scalers</h3>
+<p>
+The routine <code>MUD_setScalers</code> intializes a scaler group
+of type <code>type</code> with <code>num</code> scalers.  
+Valid types are (defined in the include file): 
+<code>MUD_GRP_GEN_SCALER_ID</code>, 
+<code>MUD_GRP_TRI_TD_SCALER_ID</code> (TD-MuSR).
+Note that scaler counts are passed in a four byte integer
+array of two elements.  The least significant half of the counts 
+is passed in the first element of the array, and the most
+significant half in the second element.
+
+</p><pre>C routines:
+int MUD_setScalers( int fh, UINT32 type, UINT32 num );
+int MUD_setScalerLabel( int fh, int num, char* label );
+int MUD_setScalerCounts( int fh, int num, UINT32* pCounts );
+
+Fortran routines:
+integer*4 fMUD_setScalers( i_fh, i_type, i_num )
+integer*4 fMUD_setScalerLabel( i_fh, i_num, c_label )
+integer*4 fMUD_setScalerCounts( i_fh, i_num, i_Counts(2) )
+</pre>
+
+<h3>Writing the Independent Variables</h3>
+<p>
+The routine <code>MUD_setIndVars</code> initializes a
+independent variable group
+of type <code>type</code> with <code>num</code> 
+independent variables.  
+Valid types are (defined in the include file): 
+<code>MUD_GRP_GEN_IND_VAR_ID</code> (TD-MuSR), 
+<code>MUD_GRP_GEN_IND_VAR_ARR_ID</code> (I-MuSR).
+The type <code>MUD_GRP_GEN_IND_VAR_ID</code> has statistics
+data only.  The type <code>MUD_GRP_GEN_IND_VAR_ARR_ID</code> has
+statistics data, history data and possibly time data (time that
+the data point was taken, in seconds since 00:00 Jan. 1, 1970).
+
+</p><p>
+For history data, the data type is specified in <code>dataType</code>, 
+with values of 1 for integer, 2 for real and 3 for string.  
+The number of history data points is set in <code>numData</code>.
+The element size <code>elemSize</code> is in bytes per element.
+It might be desireable to pass a pointer to the array data, 
+using <code>MUD_setIndVarpData</code> and 
+<code>MUD_setIndVarpTimeData</code>.  In this case, it is up to
+the programmer to pack the data (if necessary).
+Note that time data is never packed.
+
+</p><pre>C routines:
+int MUD_setIndVars( int fh, UINT32 type, UINT32 num );
+int MUD_setIndVarLow( int fh, int num, double low );
+int MUD_setIndVarHigh( int fh, int num, double high );
+int MUD_setIndVarMean( int fh, int num, double mean );
+int MUD_setIndVarStddev( int fh, int num, double stddev );
+int MUD_setIndVarSkewness( int fh, int num, double skewness );
+int MUD_setIndVarName( int fh, int num, char* name );
+int MUD_setIndVarDescription( int fh, int num, char* description );
+int MUD_setIndVarUnits( int fh, int num, char* units );
+ For MUD_GRP_GEN_IND_VAR_ARR_ID groups:
+int MUD_setIndVarNumData( int fh, int num, UINT32 numData );
+int MUD_setIndVarElemSize( int fh, int num, UINT32 elemSize );
+int MUD_setIndVarDataType( int fh, int num, UINT32 dataType );
+int MUD_setIndVarHasTime( int fh, int num, UINT32 hasTime );
+int MUD_setIndVarData( int fh, int num, void* pData );
+int MUD_setIndVarTimeData( int fh, int num, UINT32* pTimeData );
+int MUD_setIndVarpData( int fh, int num, void* pData );
+int MUD_setIndVarpTimeData( int fh, int num, UINT32* pTimeData );
+
+Fortran routines:
+integer*4 fMUD_setIndVars( i_fh, i_type, i_num )
+integer*4 fMUD_setIndVarLow( i_fh, i_num, real*8 low )
+integer*4 fMUD_setIndVarHigh( i_fh, i_num, real*8 high )
+integer*4 fMUD_setIndVarMean( i_fh, i_num, real*8 mean )
+integer*4 fMUD_setIndVarStddev( i_fh, i_num, real*8 stddev )
+integer*4 fMUD_setIndVarSkewness( i_fh, i_num, real*8 skewness )
+integer*4 fMUD_setIndVarName( i_fh, i_num, c_name )
+integer*4 fMUD_setIndVarDescription( i_fh, i_num, c_description )
+integer*4 fMUD_setIndVarUnits( i_fh, i_num, c_units )
+ For MUD_GRP_GEN_IND_VAR_ARR_ID groups:
+integer*4 fMUD_setIndVarNumData( i_fh, i_num, i_numData )
+integer*4 fMUD_setIndVarElemSize( i_fh, i_num, i_elemSize )
+integer*4 fMUD_setIndVarDataType( i_fh, i_num, i_dataType )
+integer*4 fMUD_setIndVarHasTime( i_fh, i_num, i_hasTime )
+integer*4 fMUD_setIndVarData( i_fh, i_num, ?_pData(?) )
+integer*4 fMUD_setIndVarTimeData( i_fh, i_num, i_TimeData(?) )
+</pre>
+
+<hr>
+
+<h2><a name="MISC">Miscellaneous routines</a></h2>
+<p>
+
+</p><h3>Packing/unpacking Integer Histograms</h3>
+<p>
+MUD_pack is used to pack or unpack integer histogram data.  This
+routine is not necessary when using the routines
+<code>MUD_getData</code>, <code>MUD_getIndVarData</code>, or their
+<code>set</code> equivalents, which do the packing/unpacking
+internally if necessary.  This is always the case for Fortran access.
+<code>MUD_pack</code> may be necessary when using the routines
+<code>MUD_getpData</code>, <code>MUD_getIndVarpData</code>, or their
+<code>set</code> equivalents.  Valid bin sizes are: 0, 1, 2, 4 (bytes
+per bin).  Note that a packed array is indicated by a bin size of 0
+(zero).  <code>num</code> is the number of bins.  You must make sure
+that <code>outArray</code> has enough space for the resultant array.
+
+</p><pre>C routine:
+int MUD_pack( int num, int inBinSize, void* inArray, int outBinSize, void* outArray );
+
+Fortran routine:
+integer*4 fMUD_pack( i_num, i_inBinSize, ?_inArray(?), i_outBinSize, ?_outArray(?) )
+</pre>
+
+<hr>
+
+<h2><a name="EXAMPLES">Examples</a></h2>
+<p>
+
+</p><h3>Fortran Test</h3>
+(works with g77)
+<p>
+</p><pre>      implicit none
+      include 'mud.f77'
+
+      integer*4 idat(102400)
+
+      character*64 fname
+      integer*4 stat, fmtid
+      integer*4 fh, pType
+      integer*4 RunNumber 
+      character*80 RunTitle
+      integer*4 htype,hnum,nh
+      integer*4 nbins,nt1
+      integer*4 i,is,type,num
+      real*8 seconds
+      character*10 scl,hnam(16)
+      integer*4 sclval(2)
+
+      write(*,100) 
+ 100  format( ' Enter mud file name: ',$ )
+      read(*,200,end=999) fname
+ 200  format(a)
+
+      fmtid=1234
+      fh = fMUD_openRead( fname, fmtid )
+      write (*,*) 'After open, fh = ',fh
+      write (*,*) 'format id =', fmtid,'; TRI_TD = ',MUD_FMT_TRI_TD_ID
+
+      if (fMUD_getRunDesc(fh,pType) .eq. 0) goto 666
+
+      if (fMUD_getRunNumber(fh,RunNumber) .eq. 0) goto 666
+      if (fMUD_getTitle(fh,RunTitle) .eq. 0) goto 666
+
+      write(*,300) RunNumber,RunTitle(:66)
+ 300  format(' Run',I6,1x,A)
+
+      if (fMUD_gethists(fh,htype,nh) .eq. 0) goto 666
+      do 333 i=1,nh
+	 if (fMUD_gethisttitle(fh,i,hnam(i)) .eq. 0) goto 666
+ 333  continue
+      write(*,*) 'There are ',nh,' histograms:'
+      write(*,*) (hnam(i),i=1,nh)
+
+      hnum = 1
+      if (fMUD_gethistnumbins(fh,hnum,nbins) .eq. 0) goto 666
+      write(*,*) 'Histogram ',hnum,' has ',nbins,' bins'
+      if (fMUD_getHistGoodBin1( fh,hnum,nt1 ) .eq. 0) goto 666
+      if (nbins&gt;102400) then
+         write(*,*) 'That''s too many bins'
+      else
+         if (fMUD_getHistSecondsPerBin(fh,hnum,seconds) .eq. 0) goto 666
+	 write(*,*) seconds*1.0d9,' ns per bin'
+         if (fMUD_getHistData(fh,hnum,idat) .eq. 0) goto 666
+         write(*,500) nt1,(idat(i),i=nt1,nt1+39)
+ 500     format(' Data starting from bin',I5,':',4(/10I7))
+      endif
+
+      if (fMUD_getScalers( fh, Type, Num ) .gt. 0 .and. 
+     &gt;    Type .eq. MUD_GRP_TRI_TD_SCALER_ID) then
+
+	 write(*,*) 'There are ',Num,' scalers.'
+         do i = 1, Num
+            is = fMUD_getScalerLabel( fh, i, scl )
+            is = fMUD_getScalerCounts( fh, i, sclval )
+	    write (*,*) i,'  ',scl,': ',sclval(1)
+	 enddo
+      endif
+
+ 666  continue
+      stat = fMUD_closeRead( fh )
+*      write (*,*) 'After close, stat = ',stat
+
+ 999  continue
+
+      end
+</pre>
+
+
+<hr>
+
+<address>
+asnd@triumf.ca, µSR Facility<br>
+suz@triumf.ca, TRIUMF Data Acquisition Group
+</address>
+
+</body></html>

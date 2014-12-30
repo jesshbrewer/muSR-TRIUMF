@@ -1,0 +1,21 @@
+
+CC   =  cc
+CC_SWITCHES = -O
+LIB  = libmud.a
+OBJS =  mud.o mud_misc.o mud_all.o mud_new.o mud_gen.o mud_fort.o \
+        mud_tri_ti.o mud_friendly.o mud_encode.o 
+# fmud_friendly.o
+
+.c.o:
+	$(CC) -c $(CC_SWITCHES) $<
+
+all: $(LIB)
+
+$(LIB): $(OBJS)
+	rm -f $@
+	ar r $@ $(OBJS)
+	ranlib $@
+
+clean:
+	rm -f $(LIB) $(OBJS)
+

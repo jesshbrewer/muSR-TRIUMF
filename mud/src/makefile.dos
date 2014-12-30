@@ -1,0 +1,10 @@
+CC = bcc 
+CC_SWITCHES = -A
+
+.c.obj:
+    $(CC) -c $(CC_SWITCHES) $<
+
+OBJS = mud.obj mud_all.obj mud_gen.obj mud_new.obj mud_misc.obj mud_enco.obj mud_tri_.obj
+
+mud.lib: $(OBJS)
+    tlib $* -+mud.obj -+mud_all.obj -+mud_gen.obj -+mud_new.obj -+mud_misc.obj -+mud_enco.obj -+mud_tri_.obj

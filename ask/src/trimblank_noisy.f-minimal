@@ -1,0 +1,49 @@
+      subroutine TRIM_BLNK (N, STR)
+c============================================================================
+c...Modified 17 Feb 2001 by Donald Arseneau to use N "intent OUT",
+c   and so STR must really be a character variable (use LEN intrinsic).
+c...Modified 06 May 1998 by Jess Brewer to also strip off trailing zeroes...
+c============================================================================
+      implicit none
+      intrinsic LEN
+      integer*4 N
+      character*(*) STR
+      character*1 cz
+      byte bz
+      equivalence (cz,bz)
+      data bz /0/
+c============================================================================
+
+      N = LEN(STR)
+      do while (N .ge. 1 .and. 
+     >     ((STR(N:N) .eq. ' ' .or. STR(N:N) .eq. cz)) )
+         N = N - 1
+      end do
+      end
+
+c======================================================================
+      subroutine CHTRIM_BLNK (N, STR)
+c======================================================================
+C       Trims off trailing blanks and zeros off character string.
+c       Based on TRIM_BLNK. Replaces zeros with blanks.
+c======================================================================
+c...Modified 17 Feb 2001 by Donald Arseneau to use N "intent OUT"
+c...Modified 06 May 1998 by Jess Brewer to also strip off trailing zero
+c======================================================================
+      implicit none
+      intrinsic LEN
+      integer*4 N
+      character STR*(*)
+      character*1 cz
+      byte bz
+      equivalence (cz,bz)
+      data bz /0/
+c======================================================================
+
+      N = LEN(STR)
+      do while (N .ge. 1 .and. 
+     &		(STR(N:N) .eq. ' ' .or. STR(N:N) .eq. cz)) 
+         if (STR(N:N) .eq. cz) STR(N:N) = ' '
+         N = N - 1
+      end do
+      end

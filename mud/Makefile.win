@@ -1,0 +1,84 @@
+# Makefile for mud (dos/windows)
+#
+# Created July 26, 2002
+# By Jon DeYoung (jdeyoung@triumf.ca)
+# 
+# Examples:
+# 	make
+#	make install
+#	make clean
+#
+# You'll probably want to do:
+# 	make -f Makefile.win 
+# which will compile everything and put the executable in .\bin
+#
+# ************************NOTE************************************************
+# This program compiles under Windows using Borland's free command line tools,
+# version 5.5 (bcc32, ilink32, tlib).  It probably will not compile using 
+# another compiler, so you have been warned.
+# ****************************************************************************
+#
+
+SRC_DIR    = .\src
+UTIL_DIR   = .\util
+EXTRA_DIR  = .\extra
+
+#
+# Targets
+#
+MUD_LIB  = $(LIB_DIR)\mud.lib
+MUD_UTIL = $(BIN_DIR)\mud_util.exe
+
+all :   libdir bindir $(MUD_LIB) $(MUD_UTIL) install
+
+#####################################################################
+
+bindir:
+	if not exist bin ( mkdir bin. )
+
+libdir:
+	if not exist lib ( mkdir lib. )
+
+$(MUD_LIB):
+	cd $(SRC_DIR)
+	make -f Makefile.win
+	make -f Makefile.win install
+	cd ..
+
+$(MUD_UTIL): $(MUD_LIB) 
+	cd $(UTIL_DIR)
+	make -f Makefile.win
+	cd ..
+
+extra:	$(MUD_LIB) 
+	cd $(EXTRA_DIR)
+	make -f Makefile.win
+	cd ..
+
+install:
+	cd $(UTIL_DIR)
+	make -f Makefile.win install
+	cd ..
+
+#	cd $(EXTRA_DIR)
+#	make -f Makefile.win install
+#	cd ..
+
+clean:
+	cd src
+	make -f Makefile.win clean
+	cd ..
+	cd util
+	make -f Makefile.win clean
+	cd ..
+	cd extra
+	make -f Makefile.win clean
+	cd ..
+	if exist bin ( rd /s /q bin. )
+	if exist lib ( rd /s /q lib. )
+	
+
+lib : $(MUD_LIB)
+
+util : $(MUD_UTIL)
+

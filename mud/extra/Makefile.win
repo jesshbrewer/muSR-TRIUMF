@@ -1,0 +1,76 @@
+#
+#  Makefile for change_titles and other extra utilities.
+#  mud.h comes from ../src
+# $Log: Makefile.win,v $
+
+LIB_DIR = ../lib
+SRC_DIR = ../src
+INSTALL_DIR = ../bin
+
+LIBFILES  = $(LIB_DIR)/mud.lib
+
+OBJFILES = badbin.obj change_titles.obj
+
+TARGETS = change_titles.exe badbin.exe removerf.exe
+
+# The name of the compiler/linker/...
+.AUTODEPEND
+BCC32   = bcc32
+ILINK32 = ilink32
+
+# Some flags
+CFLAGS  = -c -I$(SRC_DIR) -w-pro -TC -D__MSDOS__
+LFLAGS  = -x -Gn
+
+# Not really sure about why this is needed, but it wouldn't compile without it.
+# These files are located in the lib directory of your Borland install
+# Here's what each one means:
+# -Name-        -Description-                           -Other-
+# c0d32.obj     DLL startup module                      
+# c0d32w.obj    DLL startup module                      Wide-char version
+# c0d32x.obj    DLL startup module                      No exception handling
+# c0pkg.obj     Package startup module
+# c0w32.obj     GUI EXE startup module
+# c0w32w.obj    GUI EXE startup module                  Wide-char version
+# c0x32.obj     32-bit console-mode EXE startup module
+# c0x32w.obj    32-bit console-mode EXE startup module  Wide-char version
+
+STDOBJS = c0x32.obj
+
+# Again, not too sure about why these are needed, but here's a brief description:
+#
+# The RTL libs are
+# cp32mt.lib                    VCL-compliant C RTL multithreaded static library
+# cp3250mt.dll, cp32mti.lib     VCL-compliant import library for multithreaded C RTL
+# cw32.lib                      RTL single-threaded static library
+# cw3250.dll, cw32i.lib         Import library for RTL cw3250.dll
+# cw32mt.lib                    RTL multi-threaded static library
+# cw3250mt.dll, cw32mti.lib     Import library for multithreaded RTL cw3250mt.dll
+
+# The 'p' in 'cp' means pascal. No need for that one. The 'i's stand for
+# import library. mt stands for multi-threaded. For simplicity, you can stic
+# to cw32.lib and cw32mt.lib for apps compiled with the free bc55.
+
+STDLIBS = import32.lib cw32.lib
+
+all: $(TARGETS)
+
+badbin.exe: badbin.obj
+    $(ILINK32) $(LFLAGS) badbin.obj $(STDOBJS), badbin.exe, , \
+      $(LIBFILES) $(STDLIBS), $(DEFFILE), $(RESFILES)
+
+change_titles.exe: change_titles.obj
+    $(ILINK32) $(LFLAGS) change_titles.obj $(STDOBJS), change_titles.exe, , \
+      $(LIBFILES) $(STDLIBS), $(DEFFILE), $(RESFILES)
+
+removerf.exe: removerf.obj
+    $(ILINK32) $(LFLAGS) removerf.obj $(STDOBJS), removerf.exe, , \
+      $(LIBFILES) $(STDLIBS), $(DEFFILE), $(RESFILES)
+
+install:
+    copy change_titles.exe $(BIN_DIR)
+    copy badbin.exe $(BIN_DIR)
+
+clean:
+    del *.obj *.res *.tds *.map *.exe
+

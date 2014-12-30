@@ -1,0 +1,12 @@
+
+CC = bcc
+CC_SWITCHES = -A -I..\lib
+
+OBJS = mud_util.obj getopt.obj mud2tri.obj mud2dat.obj tri2mud.obj dat2mud.obj mud2txt.obj tri2txt.obj
+
+.c.obj:
+    $(CC) -c $(CC_SWITCHES) $<
+
+mud_util.exe: $(OBJS) ..\lib\mud.lib
+    bcc -e$* $(OBJS) ..\lib\mud.lib
+

@@ -1,0 +1,68 @@
+# Makefile for mud.lib (dos/windows)
+#
+#
+#    Copyright (C) 2002-2010 TRIUMF (Vancouver, Canada)
+#    
+#    Released under the GNU LGPL - see http://www.gnu.org/licenses
+#
+#    This program is free software; you can distribute it and/or modify it under 
+#    the terms of the Lesser GNU General Public License as published by the Free 
+#    Software Foundation; either version 2 of the License, or any later version. 
+#    Accordingly, this program is distributed in the hope that it will be useful, 
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+#    or FITNESS FOR A PARTICULAR PURPOSE. See the Lesser GNU General Public License 
+#    for more details.
+#
+# Created July 25, 2002
+# By Jon DeYoung
+#
+# Examples:
+#   make
+#   make install
+#   make clean
+#   
+
+
+# Name of the library to be made (.lib is tagged on by the linker)
+LIB      = mud
+
+# All of the object files
+OBJFILES = mud.obj mud_misc.obj mud_all.obj mud_new.obj mud_gen.obj \
+        mud_tri_ti.obj mud_encode.obj \
+        mud_friendly.obj
+
+# Some directories
+SRC_DIR  = ..\src
+LIB_DIR  =
+INSTALL_DIR = ..\lib\
+
+# Same as $(OBJFILES) except each file has a + in front of it
+# (Is there has to be a better way to do this??)
+ADDLIB	= +mud.obj +mud_misc.obj +mud_all.obj +mud_new.obj +mud_gen.obj \
+        +mud_tri_ti.obj +mud_encode.obj \
+        +mud_friendly.obj
+
+# The name of the compilier/linker/...
+.AUTODEPEND
+BCC32   = bcc32
+ILINK32 = ilink32
+BRC32   = brc32
+TLIB	= tlib
+
+# Some flags
+CFLAGS  = -c -I$(SRC_DIR) -w-pro -TC -D__MSDOS__
+ARFLAGS	= $(LIB) /C /E
+
+# Main target
+all: $(OBJFILES)
+	del $(LIB).lib
+	$(TLIB) $(ARFLAGS) $(ADDLIB)
+
+# Install the newly created library
+install:
+	copy $(LIB).lib $(INSTALL_DIR)
+
+# Clean some things up
+clean:
+	del *.obj *.res *.tds *.map
+
